@@ -1,0 +1,19 @@
+{
+"name": "fastlayout",
+"author": "Gyamfi Agyemang",
+"repository": {
+  "type": "git",
+  "url": "https://github.com/YOUR_GITHUB_USERNAME/fastlayout"
+},
+"version": "0.1.0",
+"description": "A high-performance layout engine in C++ with WebAssembly bindings.",
+"main": "dist/fastlayout.js",
+"scripts": {
+  "build": "bash build.sh",
+  "test": "bash test.sh"
+},
+"keywords": [
+  "layout",
+  "engine",
+  "C++"]
+}              
