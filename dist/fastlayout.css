@@ -1,0 +1,256 @@
+/* FastLayout — shared stylesheet
+   Published to npm as @ctfolat/fastlayout
+   Load via: https://unpkg.com/@ctfolat/fastlayout/dist/fastlayout.css
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@300;400;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --fl-bg:       #0a0c10;
+  --fl-surface:  #111318;
+  --fl-border:   #1e2230;
+  --fl-cpp:      #00ffaa;
+  --fl-js:       #ff6b35;
+  --fl-muted:    #4a5068;
+  --fl-text:     #c8cfe0;
+  --fl-white:    #eef0f7;
+  --fl-glow-cpp: 0 0 28px rgba(0,255,170,.2);
+  --fl-glow-js:  0 0 28px rgba(255,107,53,.2);
+  --fl-radius:   12px;
+  --fl-mono:     'IBM Plex Mono', monospace;
+  --fl-sans:     'Space Grotesk', sans-serif;
+}
+
+/* ── Base ── */
+html { background: var(--fl-bg); color: var(--fl-text); font-family: var(--fl-sans); }
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,255,170,.06) 0%, transparent 70%),
+    var(--fl-bg);
+}
+
+/* ── Layout ── */
+.fl-header { padding: 64px 48px 40px; max-width: 920px; margin: 0 auto; }
+.fl-main   { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; display: flex; flex-direction: column; gap: 20px; }
+
+/* ── Typography ── */
+.fl-badge {
+  display: inline-block;
+  font-family: var(--fl-mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--fl-cpp);
+  border: 1px solid rgba(0,255,170,.3);
+  padding: 4px 12px;
+  border-radius: 4px;
+  margin-bottom: 24px;
+}
+.fl-h1 {
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  font-weight: 700;
+  color: var(--fl-white);
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  margin-bottom: 16px;
+}
+.fl-h1 em { color: var(--fl-cpp); font-style: normal; }
+.fl-subtitle {
+  font-size: 1.05rem;
+  color: var(--fl-muted);
+  max-width: 560px;
+  line-height: 1.65;
+  font-weight: 300;
+}
+
+/* ── Controls ── */
+.fl-controls {
+  background: var(--fl-surface);
+  border: 1px solid var(--fl-border);
+  border-radius: var(--fl-radius);
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.fl-row-control { flex: 1; display: flex; align-items: center; gap: 16px; min-width: 260px; }
+.fl-row-control label {
+  font-family: var(--fl-mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  color: var(--fl-muted);
+  white-space: nowrap;
+}
+.fl-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 4px;
+  background: var(--fl-border);
+  border-radius: 2px;
+  outline: none;
+}
+.fl-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--fl-cpp);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(0,255,170,.5);
+  transition: transform .1s;
+}
+.fl-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+.fl-count {
+  font-family: var(--fl-mono);
+  font-size: 14px;
+  color: var(--fl-white);
+  min-width: 60px;
+  text-align: right;
+}
+.fl-run-btn {
+  background: var(--fl-cpp);
+  color: #000;
+  border: none;
+  padding: 12px 28px;
+  font-family: var(--fl-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity .15s, transform .1s, box-shadow .15s;
+  white-space: nowrap;
+  box-shadow: 0 0 20px rgba(0,255,170,.25);
+}
+.fl-run-btn:hover  { opacity: .9; transform: translateY(-1px); box-shadow: 0 0 36px rgba(0,255,170,.4); }
+.fl-run-btn:disabled { opacity: .35; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* ── Result cards ── */
+.fl-results { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.fl-card {
+  background: var(--fl-surface);
+  border: 1px solid var(--fl-border);
+  border-radius: var(--fl-radius);
+  padding: 28px;
+  position: relative;
+  transition: border-color .3s, box-shadow .3s;
+}
+.fl-card--cpp { border-top: 2px solid rgba(0,255,170,.35); }
+.fl-card--js  { border-top: 2px solid rgba(255,107,53,.35); }
+.fl-card--cpp.fl-winner { border-color: var(--fl-cpp); box-shadow: var(--fl-glow-cpp); }
+.fl-card--js.fl-winner  { border-color: var(--fl-js);  box-shadow: var(--fl-glow-js); }
+
+.fl-card-label {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--fl-mono); font-size: 12px;
+  letter-spacing: .1em; color: var(--fl-muted);
+  text-transform: uppercase; margin-bottom: 16px;
+}
+.fl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.fl-dot--cpp { background: var(--fl-cpp); }
+.fl-dot--js  { background: var(--fl-js); }
+
+.fl-time {
+  font-family: var(--fl-mono);
+  font-size: 3.4rem;
+  font-weight: 600;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.fl-card--cpp .fl-time { color: var(--fl-cpp); }
+.fl-card--js  .fl-time { color: var(--fl-js); }
+.fl-unit   { font-family: var(--fl-mono); font-size: 11px; color: var(--fl-muted); letter-spacing: .1em; }
+.fl-detail { margin-top: 10px; font-family: var(--fl-mono); font-size: 11px; color: var(--fl-muted); line-height: 1.7; }
+
+.fl-winner-badge {
+  display: none;
+  position: absolute; top: 20px; right: 20px;
+  font-family: var(--fl-mono); font-size: 10px;
+  letter-spacing: .12em; font-weight: 600;
+  padding: 3px 10px; border-radius: 4px;
+}
+.fl-card--cpp .fl-winner-badge { background: rgba(0,255,170,.12); color: var(--fl-cpp); border: 1px solid rgba(0,255,170,.3); }
+.fl-card--js  .fl-winner-badge { background: rgba(255,107,53,.12); color: var(--fl-js);  border: 1px solid rgba(255,107,53,.3); }
+.fl-winner .fl-winner-badge { display: block; }
+
+/* ── Speedup ── */
+.fl-speedup {
+  background: var(--fl-surface);
+  border: 1px solid var(--fl-border);
+  border-radius: var(--fl-radius);
+  padding: 28px;
+}
+.fl-speedup-label { font-family: var(--fl-mono); font-size: 11px; letter-spacing: .12em; color: var(--fl-muted); text-transform: uppercase; margin-bottom: 8px; }
+.fl-speedup-num   { font-family: var(--fl-mono); font-size: 4rem; font-weight: 600; color: var(--fl-cpp); line-height: 1; margin-bottom: 14px; }
+.fl-speedup-num small { font-size: 1.6rem; color: var(--fl-muted); }
+.fl-speedup-num--js { color: var(--fl-js); }
+.fl-speedup-ctx { font-size: 13px; color: var(--fl-muted); margin-bottom: 16px; font-weight: 300; min-height: 1.4em; }
+.fl-bar-track { height: 4px; background: var(--fl-border); border-radius: 2px; overflow: hidden; }
+.fl-bar { height: 100%; width: 0; border-radius: 2px; transition: width 1s cubic-bezier(.22,1,.36,1); }
+.fl-bar--cpp { background: linear-gradient(90deg, var(--fl-cpp), rgba(0,255,170,.3)); }
+.fl-bar--js  { background: linear-gradient(90deg, var(--fl-js),  rgba(255,107,53,.3)); }
+
+/* ── Log ── */
+.fl-log {
+  background: var(--fl-surface);
+  border: 1px solid var(--fl-border);
+  border-radius: var(--fl-radius);
+  padding: 20px 24px;
+  font-family: var(--fl-mono);
+  font-size: 12px;
+  line-height: 1.8;
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--fl-border) transparent;
+}
+.fl-log .info { color: var(--fl-muted); }
+.fl-log .cpp  { color: var(--fl-cpp); }
+.fl-log .js   { color: var(--fl-js); }
+.fl-log .warn { color: #f0c040; }
+.fl-log .err  { color: #ff5566; }
+
+/* ── Note ── */
+.fl-note {
+  font-size: 13px;
+  color: var(--fl-muted);
+  line-height: 1.75;
+  padding: 20px 24px;
+  background: var(--fl-surface);
+  border: 1px solid var(--fl-border);
+  border-left: 3px solid var(--fl-border);
+  border-radius: var(--fl-radius);
+  font-weight: 300;
+}
+.fl-note strong { color: var(--fl-text); font-weight: 400; }
+.fl-note code {
+  font-family: var(--fl-mono);
+  font-size: 11px;
+  background: rgba(255,255,255,.05);
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--fl-cpp);
+}
+
+/* ── Callout ── */
+.fl-callout {
+  background: rgba(0,255,170,.04);
+  border: 1px solid rgba(0,255,170,.15);
+  border-radius: var(--fl-radius);
+  padding: 16px 20px;
+  font-family: var(--fl-mono);
+  font-size: 12px;
+  color: var(--fl-muted);
+  line-height: 1.8;
+}
+.fl-callout strong { color: var(--fl-cpp); font-weight: 600; }
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .fl-header, .fl-main { padding-left: 20px; padding-right: 20px; }
+  .fl-results { grid-template-columns: 1fr; }
+  .fl-h1 { font-size: 2rem; }
+}
