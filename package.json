@@ -1,19 +1,33 @@
 {
-"name": "fastlayout",
-"author": "Gyamfi Agyemang",
-"repository": {
-  "type": "git",
-  "url": "https://github.com/YOUR_GITHUB_USERNAME/fastlayout"
-},
-"version": "0.1.0",
-"description": "A high-performance layout engine in C++ with WebAssembly bindings.",
-"main": "dist/fastlayout.js",
-"scripts": {
-  "build": "bash build.sh",
-  "test": "bash test.sh"
-},
-"keywords": [
-  "layout",
-  "engine",
-  "C++"]
-}              
+  "name": "@ctfolat/fastlayout",
+  "author": "Gyamfi Agyemang",
+  "version": "0.1.0",
+  "description": "A high-performance layout engine in C++ with WebAssembly bindings.",
+  "main": "dist/fastlayout.js",
+  "types": "dist/fastlayout.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AgyemangDev/fastlayout.git"
+  },
+  "homepage": "https://github.com/AgyemangDev/fastlayout#readme",
+  "bugs": {
+    "url": "https://github.com/AgyemangDev/fastlayout/issues"
+  },
+  "scripts": {
+    "build": "bash build.sh",
+    "test": "bash test.sh"
+  },
+  "keywords": [
+    "layout",
+    "layout-engine",
+    "wasm",
+    "webassembly",
+    "c++",
+    "ui",
+    "rendering"
+  ],
+  "files": [
+    "dist"
+  ],
+  "license": "MIT"
+}

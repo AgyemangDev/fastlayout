@@ -6,27 +6,6 @@
 #include <memory>
 #include <unordered_map>
 
-// ─────────────────────────────────────────────
-//  FastLayout — Emscripten WASM Bindings
-//
-//  These are the functions JS calls directly.
-//  Each one takes/returns a plain JSON string
-//  so the JS developer never touches C++ types.
-//
-//  Compile with:
-//    emcc bindings/engine_bindings.cpp \
-//      -I include \
-//      -o js/fastlayout.js \
-//      -s MODULARIZE=1 \
-//      -s EXPORT_NAME="FastLayoutEngine" \
-//      -s EXPORTED_FUNCTIONS='["_fl_compute_layout","_fl_diff","_fl_version","_malloc","_free"]' \
-//      -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","UTF8ToString","stringToUTF8","lengthBytesUTF8"]' \
-//      -s ALLOW_MEMORY_GROWTH=1 \
-//      -s ENVIRONMENT="web,worker" \
-//      -O3 \
-//      --bind
-// ─────────────────────────────────────────────
-
 #ifdef __EMSCRIPTEN__
   #include <emscripten.h>
   #define EXPORT EMSCRIPTEN_KEEPALIVE
@@ -34,139 +13,114 @@
   #define EXPORT
 #endif
 
-// ── Session state (persists across calls) ────
-// We keep the last computed tree so the differ
-// can compare against it without re-parsing
 static std::shared_ptr<fl::Node> g_lastTree = nullptr;
 static fl::LayoutEngine          g_layoutEngine;
 static fl::Differ                g_differ;
 
+static std::string extractJsonValue(const std::string& input, const std::string& key) {
+    const size_t len = input.size();
+    size_t keyPos = input.find("\"" + key + "\"");
+    if (keyPos == std::string::npos) return "";
+    size_t colonPos = input.find(':', keyPos);
+    if (colonPos == std::string::npos || colonPos + 1 >= len) return "";
+    size_t start = colonPos + 1;
+    while (start < len && std::isspace((unsigned char)input[start])) ++start;
+    if (start >= len) return "";
+    char opener = input[start];
+    char closer = (opener == '{') ? '}' : (opener == '[') ? ']' : '\0';
+    if (closer == '\0') {
+        size_t end = start;
+        while (end < len && input[end] != ',' && input[end] != '}' && input[end] != ']') ++end;
+        return input.substr(start, end - start);
+    }
+    int depth = 0;
+    bool inString = false, escape = false;
+    size_t end = start;
+    for (size_t i = start; i < len; ++i) {
+        char c = input[i];
+        if (escape)              { escape = false; continue; }
+        if (c == '\\' && inString) { escape = true; continue; }
+        if (c == '"')            { inString = !inString; continue; }
+        if (inString)            { continue; }
+        if (c == opener)         { ++depth; }
+        else if (c == closer)    { --depth; if (depth == 0) { end = i; break; } }
+    }
+    if (depth != 0) return "";
+    return input.substr(start, end - start + 1);
+}
+
+static float extractFloat(const std::string& input, const std::string& key) {
+    size_t pos = input.find("\"" + key + "\"");
+    if (pos == std::string::npos) return -1.0f;
+    size_t colon = input.find(':', pos);
+    if (colon == std::string::npos) return -1.0f;
+    size_t start = colon + 1;
+    const size_t len = input.size();
+    while (start < len && std::isspace((unsigned char)input[start])) ++start;
+    if (start >= len) return -1.0f;
+    size_t end = start;
+    while (end < len && (std::isdigit((unsigned char)input[end]) || input[end] == '.' || input[end] == '-')) ++end;
+    if (end == start) return -1.0f;
+    try { return std::stof(input.substr(start, end - start)); } catch (...) { return -1.0f; }
+}
+
 extern "C" {
 
-// ── fl_version ───────────────────────────────
-// Returns engine version string
-// JS: const v = Module.ccall('fl_version', 'string', [], [])
 EXPORT const char* fl_version() {
     return "FastLayout 1.0.0 (C++/WASM)";
 }
 
-// ── fl_compute_layout ─────────────────────────
-// Takes a JSON node tree + container dimensions
-// Returns JSON with computed x/y/width/height
-// for every node in the tree
-//
-// Input JSON:  { "tree": <NodeJSON>, "width": 1280, "height": 800 }
-// Output JSON: <NodeJSON with computed fields>
 EXPORT const char* fl_compute_layout(const char* inputJson) {
     static std::string result;
-
+    if (!inputJson) { result = "{\"error\":\"null input\"}"; return result.c_str(); }
     try {
-        // Parse the wrapper object
         std::string input(inputJson);
-
-        // Extract width, height, and tree (simple key search)
-        float containerW = 1280.0f;
-        float containerH = 800.0f;
-
-        auto extractFloat = [&](const std::string& key) -> float {
-            size_t pos = input.find("\"" + key + "\"");
-            if (pos == std::string::npos) return -1.0f;
-            pos = input.find(':', pos) + 1;
-            while (std::isspace(input[pos])) ++pos;
-            size_t end = pos;
-            while (end < input.size() && (std::isdigit(input[end]) || input[end] == '.' || input[end] == '-')) ++end;
-            return std::stof(input.substr(pos, end - pos));
-        };
-
-        float w = extractFloat("width");
-        float h = extractFloat("height");
+        if (input.empty()) { result = "{\"error\":\"empty input\"}"; return result.c_str(); }
+        float containerW = 1280.0f, containerH = 800.0f;
+        float w = extractFloat(input, "width");
+        float h = extractFloat(input, "height");
         if (w > 0) containerW = w;
         if (h > 0) containerH = h;
-
-        // Find the "tree" value
-        size_t treePos = input.find("\"tree\"");
-        if (treePos == std::string::npos) {
-            result = "{\"error\":\"Missing 'tree' key\"}";
-            return result.c_str();
-        }
-        treePos = input.find(':', treePos) + 1;
-        while (std::isspace(input[treePos])) ++treePos;
-
-        fl::Parser parser(input.substr(treePos));
+        std::string treeJson = extractJsonValue(input, "tree");
+        if (treeJson.empty()) { result = "{\"error\":\"Missing or malformed tree\"}"; return result.c_str(); }
+        fl::Parser parser(treeJson);
         auto tree = parser.parseNode();
-
-        // Run layout
         g_layoutEngine.compute(*tree, containerW, containerH);
-
-        // Save tree for next diff call
         g_lastTree = tree;
-
-        // Serialize result
         result = fl::Serializer::layoutToJson(*tree);
         return result.c_str();
-
     } catch (const std::exception& e) {
         result = std::string("{\"error\":\"") + e.what() + "\"}";
+        return result.c_str();
+    } catch (...) {
+        result = "{\"error\":\"unknown exception\"}";
         return result.c_str();
     }
 }
 
-// ── fl_diff ───────────────────────────────────
-// Diffs the current tree against a new one.
-// Returns JSON patch list.
-//
-// Input JSON:  { "newTree": <NodeJSON> }
-// Output JSON: [ { "op": 0, "nodeId": 1, ... }, ... ]
-//
-// Patch ops:
-//   0 = Insert
-//   1 = Remove
-//   2 = Replace
-//   3 = UpdateAttrs
-//   4 = UpdateText
-//   5 = Move
 EXPORT const char* fl_diff(const char* inputJson) {
     static std::string result;
-
+    if (!inputJson) { result = "{\"error\":\"null input\"}"; return result.c_str(); }
     try {
-        if (!g_lastTree) {
-            result = "{\"error\":\"No previous tree. Call fl_compute_layout first.\"}";
-            return result.c_str();
-        }
-
+        if (!g_lastTree) { result = "{\"error\":\"No previous tree\"}"; return result.c_str(); }
         std::string input(inputJson);
-
-        // Find "newTree" value
-        size_t pos = input.find("\"newTree\"");
-        if (pos == std::string::npos) {
-            result = "{\"error\":\"Missing 'newTree' key\"}";
-            return result.c_str();
-        }
-        pos = input.find(':', pos) + 1;
-        while (std::isspace(input[pos])) ++pos;
-
-        fl::Parser parser(input.substr(pos));
+        std::string newTreeJson = extractJsonValue(input, "newTree");
+        if (newTreeJson.empty()) { result = "{\"error\":\"Missing newTree\"}"; return result.c_str(); }
+        fl::Parser parser(newTreeJson);
         auto newTree = parser.parseNode();
-
-        // Run diff
         auto patches = g_differ.diff(g_lastTree, newTree);
-
-        // Update stored tree
         g_lastTree = newTree;
-
         result = fl::Serializer::patchesToJson(patches);
         return result.c_str();
-
     } catch (const std::exception& e) {
         result = std::string("{\"error\":\"") + e.what() + "\"}";
+        return result.c_str();
+    } catch (...) {
+        result = "{\"error\":\"unknown exception\"}";
         return result.c_str();
     }
 }
 
-// ── fl_reset ──────────────────────────────────
-// Clears stored tree state (call when unmounting)
-EXPORT void fl_reset() {
-    g_lastTree = nullptr;
-}
+EXPORT void fl_reset() { g_lastTree = nullptr; }
 
 } // extern "C"

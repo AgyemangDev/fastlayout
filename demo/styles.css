@@ -1,0 +1,294 @@
+ @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0a0a0f;
+    --surface: #12121a;
+    --border:  #1e1e2e;
+    --cpp:     #00ffa3;
+    --js:      #ff6b35;
+    --text:    #e2e2f0;
+    --muted:   #5a5a78;
+    --card:    #14141e;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 60px 40px 40px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .badge {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--cpp);
+    border: 1px solid var(--cpp);
+    padding: 4px 10px;
+    border-radius: 2px;
+    margin-bottom: 24px;
+    opacity: 0.8;
+  }
+
+  h1 {
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 300;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+  }
+
+  h1 em { font-style: normal; color: var(--cpp); }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 18px;
+    max-width: 560px;
+    font-weight: 300;
+  }
+
+  /* ── Main layout ── */
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 40px 80px;
+  }
+
+  /* ── Controls ── */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 40px 0 32px;
+    flex-wrap: wrap;
+  }
+
+  .row-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 20px;
+  }
+
+  .row-control label {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  .row-control input[type=range] {
+    width: 180px;
+    accent-color: var(--cpp);
+  }
+
+  #rowCount {
+    font-family: 'Space Mono', monospace;
+    font-size: 18px;
+    color: var(--cpp);
+    min-width: 80px;
+    text-align: right;
+  }
+
+  .run-btn {
+    background: var(--cpp);
+    color: #000;
+    border: none;
+    padding: 14px 32px;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  .run-btn:hover { opacity: 0.9; }
+  .run-btn:active { transform: scale(0.98); }
+  .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Results ── */
+  .results {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .result-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .result-card.winner { border-color: var(--cpp); }
+
+  .result-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .result-card.cpp-card::before { background: var(--cpp); }
+  .result-card.js-card::before  { background: var(--js); }
+
+  .card-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .card-label span {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+    position: relative; top: -1px;
+  }
+
+  .cpp-dot { background: var(--cpp); box-shadow: 0 0 6px var(--cpp); }
+  .js-dot  { background: var(--js);  box-shadow: 0 0 6px var(--js); }
+
+  .card-time {
+    font-size: 48px;
+    font-weight: 300;
+    letter-spacing: -2px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .cpp-card .card-time { color: var(--cpp); }
+  .js-card  .card-time { color: var(--js);  }
+
+  .card-unit {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .winner-badge {
+    position: absolute;
+    top: 20px; right: 20px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    background: var(--cpp);
+    color: #000;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-weight: 700;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .winner .winner-badge { opacity: 1; }
+
+  /* ── Speedup bar ── */
+  .speedup-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    margin-bottom: 32px;
+  }
+
+  .speedup-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  .speedup-number {
+    font-size: 64px;
+    font-weight: 300;
+    letter-spacing: -3px;
+    line-height: 1;
+    color: var(--cpp);
+    margin-bottom: 20px;
+  }
+
+  .speedup-number small { font-size: 24px; letter-spacing: -1px; color: var(--muted); }
+
+  .bar-track {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cpp), #00c4ff);
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* ── Log ── */
+  .log {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--muted);
+    height: 180px;
+    overflow-y: auto;
+  }
+
+  .log .cpp  { color: var(--cpp); }
+  .log .js   { color: var(--js); }
+  .log .info { color: #8888aa; }
+
+  /* ── Footer note ── */
+  .note {
+    margin-top: 40px;
+    padding: 20px;
+    border-left: 2px solid var(--border);
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .note code {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    background: var(--surface);
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: var(--cpp);
+  }
+
+  @media (max-width: 600px) {
+    header, main { padding-left: 20px; padding-right: 20px; }
+    .results { grid-template-columns: 1fr; }
+    .card-time { font-size: 36px; }
+  }
