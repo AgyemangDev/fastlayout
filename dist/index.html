@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FastLayout — C++ vs JavaScript Benchmark</title>
   <link  rel="stylesheet" href="https://unpkg.com/@ctfolat/fastlayout/dist/fastlayout.css">
-  <script src="https://unpkg.com/@ctfolat/fastlayout/dist/fastlayout.js"></script>
+   <script src="./fastlayout.js"></script>
 </head>
 <body>
 <header class="fl-header">
@@ -53,76 +53,185 @@
   </div>
 </main>
 <script>
-let _mod=null,_ready=false,__compute=null,__version=null,__malloc=null,__free=null
-FastLayoutEngine().then(mod=>{
-  _mod=mod;__compute=mod['_fl_compute_layout'];__version=mod['_fl_version']
-  __malloc=mod['_malloc'];__free=mod['_free'];_ready=true
+let _mod = null, __compute = null, __version = null, __malloc = null, __free = null
+
+// wasmReady resolves when the engine is fully usable, rejects otherwise.
+// Always await this — never check a _ready flag.
+const wasmReady = FastLayoutEngine().then(mod => {
+  if (!mod.HEAPU8) throw new Error(
+    'WASM heap unavailable — the .wasm binary likely returned 404. ' +
+    'Check the Network tab for a failed request to fastlayout.wasm.'
+  )
+  _mod      = mod
+  __compute = mod['_fl_compute_layout']
+  __version = mod['_fl_version']
+  __malloc  = mod['_malloc']
+  __free    = mod['_free']
   log(`// WASM engine ready: ${readStr(__version())}`, 'cpp')
-}).catch(e=>log(`// Engine failed: ${e.message}`,'err'))
+}).catch(e => {
+  log(`// Engine failed to load: ${e.message}`, 'err')
+  throw e   // keep the promise rejected so callers can catch it
+})
 
-function heapStr(s){const b=new TextEncoder().encode(s),p=__malloc(b.length+1);_mod.HEAPU8.set(b,p);_mod.HEAPU8[p+b.length]=0;return p}
-function readStr(p){return _mod['UTF8ToString'](p)}
-function wasmLayout(json){const p=heapStr(json);try{return readStr(__compute(p))}finally{__free(p)}}
-
-function jsLayout(node,aW,aH){
-  const s=node.style||{},W=s.width>=0?s.width:aW,H=s.height>=0?s.height:aH
-  node.computed={x:0,y:0,width:W,height:H}
-  if(!node.children?.length)return
-  const row=!s.flexDirection||s.flexDirection===0||s.flexDirection===2
-  const pl=s.paddingLeft||0,pt=s.paddingTop||0,gap=s.gap||0
-  const iW=W-pl-(s.paddingRight||0),iH=H-pt-(s.paddingBottom||0),main=row?iW:iH
-  let used=0,grow=0
-  for(const c of node.children){const cs=c.style||{},base=row?(cs.flexBasis>=0?cs.flexBasis:cs.width>=0?cs.width:0):(cs.flexBasis>=0?cs.flexBasis:cs.height>=0?cs.height:0);used+=base;grow+=cs.flexGrow||0;c.computed=row?{width:base,height:cs.height>=0?cs.height:iH}:{height:base,width:cs.width>=0?cs.width:iW}}
-  used+=gap*(node.children.length-1);const rem=main-used
-  if(rem>0&&grow>0)for(const c of node.children){const g=c.style?.flexGrow||0;if(!g)continue;if(row)c.computed.width+=rem*(g/grow);else c.computed.height+=rem*(g/grow)}
-  let cur=row?pl:pt
-  for(const c of node.children){const cs=c.style||{},sz=row?c.computed.width:c.computed.height;if(row){c.computed.x=node.computed.x+cur;c.computed.y=node.computed.y+pt}else{c.computed.x=node.computed.x+pl;c.computed.y=node.computed.y+cur};cur+=sz+gap;if(c.children?.length)jsLayout(c,c.computed.width,c.computed.height)}
+function heapStr(s) {
+  if (!_mod?.HEAPU8) throw new Error('WASM heap not ready')
+  const b = new TextEncoder().encode(s)
+  const p = __malloc(b.length + 1)
+  if (!p) throw new Error('WASM malloc returned null')
+  _mod.HEAPU8.set(b, p)
+  _mod.HEAPU8[p + b.length] = 0
+  return p
+}
+function readStr(p) { return _mod['UTF8ToString'](p) }
+function wasmLayout(json) {
+  const p = heapStr(json)
+  try { return readStr(__compute(p)) } finally { __free(p) }
 }
 
-function makeTree(n,startId=1){
-  const rows=Math.max(1,Math.floor(n/5)),root={id:startId,tag:'div',text:'',attrs:{},style:{width:1280,height:800,flexDirection:1,gap:2},children:[]}
-  let id=startId+1
-  for(let r=0;r<rows;r++){const row={id:id++,tag:'div',text:'',attrs:{},style:{flexGrow:1,flexDirection:0,gap:4,paddingLeft:8,paddingRight:8},children:[]};for(let c=0;c<4;c++)row.children.push({id:id++,tag:'div',text:'',attrs:{},style:{flexGrow:1,height:40},children:[]});root.children.push(row)}
+function jsLayout(node, aW, aH) {
+  const s = node.style || {}, W = s.width >= 0 ? s.width : aW, H = s.height >= 0 ? s.height : aH
+  node.computed = { x:0, y:0, width:W, height:H }
+  if (!node.children?.length) return
+  const row = !s.flexDirection || s.flexDirection === 0 || s.flexDirection === 2
+  const pl = s.paddingLeft||0, pt = s.paddingTop||0, gap = s.gap||0
+  const iW = W-pl-(s.paddingRight||0), iH = H-pt-(s.paddingBottom||0), main = row ? iW : iH
+  let used = 0, grow = 0
+  for (const c of node.children) {
+    const cs = c.style||{}, base = row ? (cs.flexBasis>=0?cs.flexBasis:cs.width>=0?cs.width:0) : (cs.flexBasis>=0?cs.flexBasis:cs.height>=0?cs.height:0)
+    used += base; grow += cs.flexGrow||0
+    c.computed = row ? { width:base, height:cs.height>=0?cs.height:iH } : { height:base, width:cs.width>=0?cs.width:iW }
+  }
+  used += gap * (node.children.length - 1)
+  const rem = main - used
+  if (rem > 0 && grow > 0)
+    for (const c of node.children) { const g = c.style?.flexGrow||0; if (!g) continue; if (row) c.computed.width+=rem*(g/grow); else c.computed.height+=rem*(g/grow) }
+  let cur = row ? pl : pt
+  for (const c of node.children) {
+    const cs = c.style||{}, sz = row ? c.computed.width : c.computed.height
+    if (row) { c.computed.x = node.computed.x+cur; c.computed.y = node.computed.y+pt }
+    else     { c.computed.x = node.computed.x+pl;  c.computed.y = node.computed.y+cur }
+    cur += sz + gap
+    if (c.children?.length) jsLayout(c, c.computed.width, c.computed.height)
+  }
+}
+
+function makeTree(n, startId = 1) {
+  const rows = Math.max(1, Math.floor(n/5))
+  const root = { id:startId, tag:'div', text:'', attrs:{}, style:{ width:1280, height:800, flexDirection:1, gap:2 }, children:[] }
+  let id = startId + 1
+  for (let r = 0; r < rows; r++) {
+    const row = { id:id++, tag:'div', text:'', attrs:{}, style:{ flexGrow:1, flexDirection:0, gap:4, paddingLeft:8, paddingRight:8 }, children:[] }
+    for (let c = 0; c < 4; c++) row.children.push({ id:id++, tag:'div', text:'', attrs:{}, style:{ flexGrow:1, height:40 }, children:[] })
+    root.children.push(row)
+  }
   return root
 }
 
-function log(msg,cls='info'){const el=document.getElementById('log');el.innerHTML+=`<div class="${cls}">${msg}</div>`;el.scrollTop=el.scrollHeight}
-function avg(a){return a.reduce((s,v)=>s+v,0)/a.length}
-function ctx(x,w,n){const ns=n.toLocaleString();if(x<1.3)return`${w} has a marginal edge at ${ns} nodes.`;if(x<3)return`${w} is notably faster at ${ns} nodes.`;if(x<8)return`${w} wins clearly at ${ns} nodes.`;if(x<20)return`${w} dominates at ${ns} nodes.`;return`${w} is in a different league at ${ns} nodes.`}
+function log(msg, cls='info') { const el = document.getElementById('log'); el.innerHTML += `<div class="${cls}">${msg}</div>`; el.scrollTop = el.scrollHeight }
+function avg(a) { return a.reduce((s,v) => s+v, 0) / a.length }
+function ctx(x, w, n) {
+  const ns = n.toLocaleString()
+  if (x < 1.3) return `${w} has a marginal edge at ${ns} nodes.`
+  if (x < 3)   return `${w} is notably faster at ${ns} nodes.`
+  if (x < 8)   return `${w} wins clearly at ${ns} nodes.`
+  if (x < 20)  return `${w} dominates at ${ns} nodes.`
+  return `${w} is in a different league at ${ns} nodes.`
+}
 
-document.getElementById('nodeSlider').addEventListener('input',function(){document.getElementById('rowCount').textContent=Number(this.value).toLocaleString()})
+document.getElementById('nodeSlider').addEventListener('input', function() {
+  document.getElementById('rowCount').textContent = Number(this.value).toLocaleString()
+})
 
-async function runBenchmark(){
-  const btn=document.getElementById('runBtn');btn.disabled=true;btn.textContent='⏳ Running…'
-  const n=parseInt(document.getElementById('nodeSlider').value)
-  log(`<br>// Benchmark: ${n.toLocaleString()} nodes`,'info')
-  const jsTree=makeTree(n,1),wasmTree=makeTree(n,1000000),payload=JSON.stringify({width:1280,height:800,tree:wasmTree})
-  log(`// Payload: ${(payload.length/1024).toFixed(1)} KB`,'info')
-  await new Promise(r=>setTimeout(r,50))
-  const W=3,R=10
-  for(let i=0;i<W;i++)jsLayout(structuredClone(jsTree),1280,800)
-  const jT=[];for(let i=0;i<R;i++){const t=performance.now();jsLayout(structuredClone(jsTree),1280,800);jT.push(performance.now()-t)}
-  const jsAvg=avg(jT),jsMin=Math.min(...jT)
-  log(`[JS]  avg ${jsAvg.toFixed(2)}ms  min ${jsMin.toFixed(2)}ms  (${R} runs)`,'js')
-  let cppAvg,cppMin
-  if(_ready){
-    const probe=JSON.parse(wasmLayout(payload))
-    if(probe.error){log(`[C++] ERROR: ${probe.error}`,'err');btn.disabled=false;btn.textContent='▶ RUN AGAIN';return}
-    for(let i=0;i<W;i++)wasmLayout(payload)
-    const cT=[];for(let i=0;i<R;i++){const t=performance.now();wasmLayout(payload);cT.push(performance.now()-t)}
-    cppAvg=avg(cT);cppMin=Math.min(...cT)
-    log(`[C++] avg ${cppAvg.toFixed(2)}ms  min ${cppMin.toFixed(2)}ms  (${R} runs, heap-safe WASM)`,'cpp')
-  } else {cppAvg=jsAvg/8;cppMin=cppAvg*.9;log('[C++] loading — showing estimate','warn')}
-  document.getElementById('cppTime').textContent=cppAvg.toFixed(2)
-  document.getElementById('jsTime').textContent=jsAvg.toFixed(2)
-  document.getElementById('cppDetail').innerHTML=`min ${cppMin.toFixed(2)}ms &nbsp;·&nbsp; ${R} runs`
-  document.getElementById('jsDetail').innerHTML=`min ${jsMin.toFixed(2)}ms &nbsp;·&nbsp; ${R} runs`
-  const speedup=jsAvg/cppAvg,snEl=document.getElementById('speedupNum'),scEl=document.getElementById('speedupCtx'),bar=document.getElementById('speedupBar')
-  if(speedup>=1){document.getElementById('cppCard').classList.add('fl-winner');document.getElementById('jsCard').classList.remove('fl-winner');snEl.className='fl-speedup-num';snEl.innerHTML=`${speedup.toFixed(1)}<small> ×</small>`;bar.className='fl-bar fl-bar--cpp';scEl.textContent=ctx(speedup,'C++ / WASM',n);log(`// C++ is ${speedup.toFixed(1)}× faster.`,'cpp')}
-  else{document.getElementById('jsCard').classList.add('fl-winner');document.getElementById('cppCard').classList.remove('fl-winner');const inv=1/speedup;snEl.className='fl-speedup-num fl-speedup-num--js';snEl.innerHTML=`${inv.toFixed(1)}<small> ×</small>`;bar.className='fl-bar fl-bar--js';scEl.textContent=ctx(inv,'Pure JS',n)+' — increase nodes for C++ to dominate';log(`// JS is ${inv.toFixed(1)}× faster here — try 10k+ nodes.`,'js')}
-  const pct=Math.min(96,Math.max(4,(Math.abs(Math.log10(Math.max(speedup,1/speedup)))/Math.log10(50))*94))
-  setTimeout(()=>{bar.style.width=pct+'%'},80)
-  btn.disabled=false;btn.textContent='▶ RUN AGAIN'
+async function runBenchmark() {
+  const btn = document.getElementById('runBtn')
+  btn.disabled = true
+  btn.textContent = '⏳ Loading WASM…'
+
+  // Wait for engine — bail out with a clear message if it never loaded
+  let wasmOk = true
+  try { await wasmReady } catch { wasmOk = false }
+
+  btn.textContent = '⏳ Running…'
+
+  const n = parseInt(document.getElementById('nodeSlider').value)
+  log(`<br>// Benchmark: ${n.toLocaleString()} nodes`, 'info')
+
+  const jsTree = makeTree(n, 1), wasmTree = makeTree(n, 1_000_000)
+  const payload = JSON.stringify({ width:1280, height:800, tree:wasmTree })
+  log(`// Payload: ${(payload.length/1024).toFixed(1)} KB`, 'info')
+
+  await new Promise(r => setTimeout(r, 50))
+
+  const W = 3, R = 10
+
+  // JS benchmark (always runs)
+  for (let i = 0; i < W; i++) jsLayout(structuredClone(jsTree), 1280, 800)
+  const jT = []
+  for (let i = 0; i < R; i++) {
+    const t = performance.now(); jsLayout(structuredClone(jsTree), 1280, 800); jT.push(performance.now()-t)
+  }
+  const jsAvg = avg(jT), jsMin = Math.min(...jT)
+  log(`[JS]  avg ${jsAvg.toFixed(2)}ms  min ${jsMin.toFixed(2)}ms  (${R} runs)`, 'js')
+
+  // WASM benchmark (only if engine loaded)
+  let cppAvg, cppMin
+  if (wasmOk) {
+    let probe
+    try { probe = JSON.parse(wasmLayout(payload)) }
+    catch (e) { log(`[C++] crash during probe: ${e.message}`, 'err'); btn.disabled=false; btn.textContent='▶ RUN AGAIN'; return }
+    if (probe.error) { log(`[C++] ERROR: ${probe.error}`, 'err'); btn.disabled=false; btn.textContent='▶ RUN AGAIN'; return }
+
+    for (let i = 0; i < W; i++) wasmLayout(payload)
+    const cT = []
+    for (let i = 0; i < R; i++) {
+      const t = performance.now(); wasmLayout(payload); cT.push(performance.now()-t)
+    }
+    cppAvg = avg(cT); cppMin = Math.min(...cT)
+    log(`[C++] avg ${cppAvg.toFixed(2)}ms  min ${cppMin.toFixed(2)}ms  (${R} runs, heap-safe WASM)`, 'cpp')
+  } else {
+    // Engine failed — show JS result only, don't pretend to have WASM numbers
+    log('[C++] WASM unavailable — fix the .wasm 404 to enable this side of the benchmark', 'err')
+    document.getElementById('cppTime').textContent = '—'
+    document.getElementById('cppDetail').textContent = 'WASM load failed'
+    document.getElementById('jsTime').textContent = jsAvg.toFixed(2)
+    document.getElementById('jsDetail').innerHTML = `min ${jsMin.toFixed(2)}ms &nbsp;·&nbsp; ${R} runs`
+    btn.disabled = false; btn.textContent = '▶ RUN AGAIN'
+    return
+  }
+
+  // Results display
+  document.getElementById('cppTime').textContent = cppAvg.toFixed(2)
+  document.getElementById('jsTime').textContent  = jsAvg.toFixed(2)
+  document.getElementById('cppDetail').innerHTML = `min ${cppMin.toFixed(2)}ms &nbsp;·&nbsp; ${R} runs`
+  document.getElementById('jsDetail').innerHTML  = `min ${jsMin.toFixed(2)}ms &nbsp;·&nbsp; ${R} runs`
+
+  const speedup = jsAvg / cppAvg
+  const snEl = document.getElementById('speedupNum'), scEl = document.getElementById('speedupCtx'), bar = document.getElementById('speedupBar')
+
+  if (speedup >= 1) {
+    document.getElementById('cppCard').classList.add('fl-winner')
+    document.getElementById('jsCard').classList.remove('fl-winner')
+    snEl.className = 'fl-speedup-num'
+    snEl.innerHTML = `${speedup.toFixed(1)}<small> ×</small>`
+    bar.className = 'fl-bar fl-bar--cpp'
+    scEl.textContent = ctx(speedup, 'C++ / WASM', n)
+    log(`// C++ is ${speedup.toFixed(1)}× faster.`, 'cpp')
+  } else {
+    document.getElementById('jsCard').classList.add('fl-winner')
+    document.getElementById('cppCard').classList.remove('fl-winner')
+    const inv = 1 / speedup
+    snEl.className = 'fl-speedup-num fl-speedup-num--js'
+    snEl.innerHTML = `${inv.toFixed(1)}<small> ×</small>`
+    bar.className = 'fl-bar fl-bar--js'
+    scEl.textContent = ctx(inv, 'Pure JS', n) + ' — increase nodes for C++ to dominate'
+    log(`// JS is ${inv.toFixed(1)}× faster here — try 10k+ nodes.`, 'js')
+  }
+
+  const pct = Math.min(96, Math.max(4, (Math.abs(Math.log10(Math.max(speedup, 1/speedup))) / Math.log10(50)) * 94))
+  setTimeout(() => { bar.style.width = pct + '%' }, 80)
+
+  btn.disabled = false
+  btn.textContent = '▶ RUN AGAIN'
 }
 </script>
 </body>
